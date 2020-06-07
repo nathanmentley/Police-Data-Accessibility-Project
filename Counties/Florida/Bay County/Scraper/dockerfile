@@ -18,16 +18,16 @@ RUN GK_VERSION=$(if [ ${GECKODRIVER_VERSION:-latest} = "latest" ]; then echo "0.
   && chmod 755 /opt/geckodriver-$GK_VERSION \
   && ln -fs /opt/geckodriver-$GK_VERSION /usr/bin/geckodriver
 
-# Create working directory
+# Create working and output directory
 WORKDIR /usr/app
 
 # create entrypoint script
 RUN echo "#!/usr/bin/env bash \n\
-\n\
 export DISPLAY=:20\n\
 Xvfb :20 -screen 0 1366x768x16 &\n\
 \n\
-python3 Scraper.py \"$@\" -u -v" > entrypoint.sh
+python3 Scraper.py \$@" > /usr/app/entrypoint.sh
+RUN chmod +x /usr/app/entrypoint.sh
 
 # Install python app dependencies
 COPY requirements.txt ./
@@ -36,13 +36,4 @@ RUN pip3 install -r ./requirements.txt
 # Bundle app source
 COPY . .
 
-# Add user
-RUN groupadd -r pdapuser && useradd -r -g pdapuser -G audio,video pdapuser \
-    && mkdir -p /home/pdapuser/Downloads \
-    && chown -R pdapuser:pdapuser /home/pdapuser \
-    && chown -R pdapuser:pdapuser .
-
-# Run everything after as non-privileged user.
-USER pdapuser
-
-ENTRYPOINT ["bash", "entrypoint.sh"]
+ENTRYPOINT ["/usr/app/entrypoint.sh"]
