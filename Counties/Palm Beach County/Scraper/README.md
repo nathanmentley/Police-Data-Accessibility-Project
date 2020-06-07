@@ -1,3 +1,7 @@
+## Running
+
+### Locally
+
 - install node
 - extract these files into a folder
 - navigate to that folder via terminal
@@ -10,3 +14,8 @@ Setting start to 0 should start you on the current day. Setting end to 1 should 
 - type "npm start" 
 
 that will run the scraper in a custom chrome browser.
+
+### Docker
+
+- docker build -t pdap/palm-beach-scraper .
+- docker run --it pdap/palm-beach-scraper

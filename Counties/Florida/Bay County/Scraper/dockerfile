@@ -1,0 +1,48 @@
+# Use a fixed version of python
+FROM python:3.8.3-buster
+
+# Install firefox and tesseract
+RUN apt-get update && apt-get install -y software-properties-common
+RUN apt-add-repository non-free
+RUN apt-get update && apt-get install -y xvfb firefox-esr tesseract-ocr libtesseract-dev
+
+# Install GeckoDriver
+ARG GECKODRIVER_VERSION=latest
+RUN GK_VERSION=$(if [ ${GECKODRIVER_VERSION:-latest} = "latest" ]; then echo "0.26.0"; else echo $GECKODRIVER_VERSION; fi) \
+  && echo "Using GeckoDriver version: "$GK_VERSION \
+  && wget --no-verbose -O /tmp/geckodriver.tar.gz https://github.com/mozilla/geckodriver/releases/download/v$GK_VERSION/geckodriver-v$GK_VERSION-linux64.tar.gz \
+  && rm -rf /opt/geckodriver \
+  && tar -C /opt -zxf /tmp/geckodriver.tar.gz \
+  && rm /tmp/geckodriver.tar.gz \
+  && mv /opt/geckodriver /opt/geckodriver-$GK_VERSION \
+  && chmod 755 /opt/geckodriver-$GK_VERSION \
+  && ln -fs /opt/geckodriver-$GK_VERSION /usr/bin/geckodriver
+
+# Create working directory
+WORKDIR /usr/app
+
+# create entrypoint script
+RUN echo "#!/usr/bin/env bash \n\
+\n\
+export DISPLAY=:20\n\
+Xvfb :20 -screen 0 1366x768x16 &\n\
+\n\
+python3 Scraper.py \"$@\" -u -v" > entrypoint.sh
+
+# Install python app dependencies
+COPY requirements.txt ./
+RUN pip3 install -r ./requirements.txt
+
+# Bundle app source
+COPY . .
+
+# Add user
+RUN groupadd -r pdapuser && useradd -r -g pdapuser -G audio,video pdapuser \
+    && mkdir -p /home/pdapuser/Downloads \
+    && chown -R pdapuser:pdapuser /home/pdapuser \
+    && chown -R pdapuser:pdapuser .
+
+# Run everything after as non-privileged user.
+USER pdapuser
+
+ENTRYPOINT ["bash", "entrypoint.sh"]
